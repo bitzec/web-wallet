@@ -608,7 +608,7 @@ class ZSend extends React.Component {
     }
 
     // Private key
-    const senderPrivateKey = this.props.publicAddresses[senderAddress].privateKey;
+    const senderPrivateKeyWIF = this.props.publicAddresses[senderAddress].privateKeyWIF;
 
     // Get previous transactions
     const prevTxURL = utils.urlAppend(this.props.settings.insightAPI, 'addr/') + senderAddress + '/utxo'
@@ -631,9 +631,9 @@ class ZSend extends React.Component {
       axios.get(infoURL)
       .then(function (info_resp){
         this.setProgressValue(50)
-        const info_data = info_resp.data
+        const infoData = info_resp.data
 
-        const blockHeight = info_data.info.blocks - 300
+        const blockHeight = infoData.info.blocks - 300
         const blockHashURL = utils.urlAppend(this.props.settings.insightAPI, 'block-index/') + blockHeight        
 
         // Get block hash
@@ -653,6 +653,7 @@ class ZSend extends React.Component {
             history = history.concat({
               txid: tx_data[i].txid,
               vout: tx_data[i].vout,
+              satoshis: tx_data[i].satoshis,
               scriptPubKey: tx_data[i].scriptPubKey,            
             });
             
@@ -674,36 +675,66 @@ class ZSend extends React.Component {
           // Refund remaining to current address
           if (satoshisSoFar !== satoshisToSend + satoshisfeesToSend){
             var refundSatoshis = satoshisSoFar - satoshisToSend - satoshisfeesToSend
-            recipients = recipients.concat({address: senderAddress, satoshis: refundSatoshis})
+            // Refunding 'dust' (<54 satoshis will result in unconfirmed txs)
+            if (refundSatoshis > 60){
+              recipients = recipients.concat({address: senderAddress, satoshis: refundSatoshis})
+            }
           }
 
-          // Create transaction
-          var txObj = btczjs.transaction.createRawTx(history, recipients, blockHeight, blockHash)
+          // Start building transaction
+          const networkName = this.props.settings.useTestNet ? 'bitcoinzTest' : 'bitcoinz'
+          let network = bitgoUtxoLib.networks[networkName]
 
-          // Sign each history transcation          
-          for (var i = 0; i < history.length; i ++){
-            txObj = btczjs.transaction.signTx(txObj, i, senderPrivateKey, this.props.settings.compressPubKey)
+          var keyPair = bitgoUtxoLib.ECPair.fromWIF(senderPrivateKeyWIF,network)
+          var txb = new bitgoUtxoLib.TransactionBuilder(network)
+
+          txb.setVersion(bitgoUtxoLib.Transaction.ZCASH_SAPLING_VERSION)
+          txb.setVersionGroupId(0x892F2085)
+          txb.setExpiryHeight(infoData.info.blocks+300) // expiration set to 300 blocks
+
+          // add inputs
+          for (var j = 0; j < history.length; j++) {
+            txb.addInput(history[j].txid, history[j].vout)
+          }
+
+          // add outputs
+          for (var k = 0; k < recipients.length; k++) {
+            var outputScript = bitgoUtxoLib.address.toOutputScript(recipients[k].address,network)
+            txb.addOutput(outputScript, recipients[k].satoshis)
+          }
+
+          // Sign each history transcation
+          for (var l = 0; l < history.length; l++) {
+            txb.sign(l,keyPair,'',bitgoUtxoLib.Transaction.SIGHASH_SINGLE,history[l].satoshis,'')
           }
 
           // Convert it to hex string
-          const txHexString = btczjs.transaction.serializeTx(txObj)
+          const txHexString = txb.build().toHex()
 
-          axios.post(sendRawTxURL, {rawtx: txHexString})
-          .then(function(sendtx_resp){         
-            this.setState({
-              sendProgress: 100,
-              sentTxid: sendtx_resp.data.txid
+          // Post it to the api
+          axios.post(sendRawTxURL, { rawtx: txHexString }, {
+              headers: { 'Content-Type': 'application/json' }
             })
-          }.bind(this))
-          .catch(function(error) {            
-            this.setSendErrorMessage(error + '')
-            this.setProgressValue(0)
-            return
-          }.bind(this))
+            .then((sendtxResp) => {
+              const txRespData = sendtxResp.data
+
+              this.setState({
+                sendProgress: 100,
+                sentTxid: txRespData.txid
+              })
+            })
+
+            .catch((err) => {
+              console.error('Error sending RawTxURL: ', { sendRawTxURL, err })
+              this.setSendErrorMessage(err + '')
+              this.setProgressValue(0)
+              return
+            });
         }.bind(this))
       }.bind(this))
     }.bind(this))
     .catch(function(error){      
+      console.error('Error getting prevTxURL: ', { prevTxURL, err })
       this.setSendErrorMessage(error)
       this.setProgressValue(0)
       return
