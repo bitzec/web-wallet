@@ -5,8 +5,9 @@ import axios from 'axios'
 import React from 'react'
 import classnames from 'classnames'
 import CopyToClipboard from 'react-copy-to-clipboard'
-import zencashjs from 'zencashjs'
-import zenwalletutils from '../lib/utils'
+import bitgoUtxoLib from 'bitgo-utxo-lib';
+import btczjs from 'btczjs';
+import utils from '../lib/utils'
 import hdwallet from '../lib/hdwallet'
 
 import MDRefresh from 'react-icons/lib/md/refresh'
@@ -18,7 +19,7 @@ import FAEyeSlash from 'react-icons/lib/fa/eye-slash'
 import FAEye from 'react-icons/lib/fa/eye'
 
 // Throttled GET request to prevent unusable lag
-const throttledAxiosGet = zenwalletutils.promiseDebounce(axios.get, 1000, 5)
+const throttledAxiosGet = utils.promiseDebounce(axios.get, 1000, 5)
 
 // Unlock wallet enum
 var UNLOCK_WALLET_TYPE = {
@@ -71,10 +72,10 @@ class ZWalletGenerator extends React.Component {
 
   handlePasswordPhrase(e){
     // What wif format do we use?
-    var wifHash = this.props.settings.useTestNet ? zencashjs.config.testnet.wif : zencashjs.config.mainnet.wif
+    var wifHash = this.props.settings.useTestNet ? btczjs.config.testnet.wif : btczjs.config.mainnet.wif
 
-    var pk = zencashjs.address.mkPrivKey(e.target.value)
-    var pkwif = zencashjs.address.privKeyToWIF(pk, true, wifHash)
+    var pk = btczjs.address.mkPrivKey(e.target.value)
+    var pkwif = utils.privKeyToWIF(pk, true, wifHash)
 
     if (e.target.value === ''){
       pkwif = ''
@@ -160,6 +161,7 @@ class ZWalletUnlockKey extends React.Component {
       // Set private key and unlock them (we know it'll work so no need to validate)
       this.props.setPrivateKeys(pk, true)
     } catch (err){
+      console.error('unlockHDWallet():', { err });
       this.setState({
         secretPhraseTooShort: true
       })
@@ -219,8 +221,8 @@ class ZWalletUnlockKey extends React.Component {
                 />
               </Label>
               <FormText color="muted">
-                For Windows, it should be in %APPDATA%/zen<br/>
-                For Mac/Linux, it should be in ~/.zen
+                For Windows, it should be in %APPDATA%/bitcoinz<br/>
+                For Mac/Linux, it should be in ~/.bitcoinz
               </FormText>
             </Col>
           </FormGroup>
@@ -286,7 +288,7 @@ class ZWalletSettings extends React.Component {
   render () {
     return (
       <Modal isOpen={this.props.settings.showSettings} toggle={this.props.toggleModalSettings}>
-        <ModalHeader toggle={this.props.toggleShowSettings}>ZenCash Wallet Settings</ModalHeader>                  
+        <ModalHeader toggle={this.props.toggleShowSettings}>BitcoinZ Wallet Settings</ModalHeader>                  
         <ModalBody>
           <ZWalletSelectUnlockType
               setUnlockType={this.props.setUnlockType}
@@ -365,8 +367,8 @@ class ZAddressInfo extends React.Component {
   // Updates a address info
   updateAddressInfo(address) {
     // GET request to URL
-    var info_url = zenwalletutils.urlAppend(this.props.settings.insightAPI, 'addr/')
-    info_url = zenwalletutils.urlAppend(info_url, address + '?noTxList=1')    
+    var info_url = utils.urlAppend(this.props.settings.insightAPI, 'addr/')
+    info_url = utils.urlAppend(info_url, address + '?noTxList=1')    
         
     throttledAxiosGet(info_url)
     .then(function (response){
@@ -379,7 +381,8 @@ class ZAddressInfo extends React.Component {
       })
 
     }.bind(this))
-    .catch(function (error){
+    .catch(function (err){
+      console.error('updateAddressInfo()', { address, err });
       this.setState({
         retrieveAddressError: true
       })
@@ -491,7 +494,7 @@ class ZAddressInfo extends React.Component {
   }
 }
 
-class ZSendZEN extends React.Component {
+class ZSend extends React.Component {
   constructor(props) {
     super(props)    
     
@@ -502,7 +505,7 @@ class ZSendZEN extends React.Component {
     this.handleUpdateAmount = this.handleUpdateAmount.bind(this);
     this.handleCheckChanged = this.handleCheckChanged.bind(this);
     this.handleUpdateFee = this.handleUpdateFee.bind(this);
-    this.handleSendZEN = this.handleSendZEN.bind(this);    
+    this.handleSend = this.handleSend.bind(this);    
 
     this.state = {
       selectedAddress: '', // which address did we select
@@ -558,7 +561,7 @@ class ZSendZEN extends React.Component {
     })
   }
 
-  handleSendZEN(){      
+  handleSend(){      
     const value = this.state.amount;
     const fee = this.state.fee;
     const recipientAddress = this.state.recipientAddress;
@@ -569,7 +572,7 @@ class ZSendZEN extends React.Component {
     const satoshisToSend = Math.round(value * 100000000)
     const satoshisfeesToSend = Math.round(fee * 100000000)        
     
-    // Reset zen send progress and error message
+    // Reset send progress and error message
     this.setProgressValue(1)
     this.setSendErrorMessage('')
 
@@ -605,12 +608,12 @@ class ZSendZEN extends React.Component {
     }
 
     // Private key
-    const senderPrivateKey = this.props.publicAddresses[senderAddress].privateKey;
+    const senderPrivateKeyWIF = this.props.publicAddresses[senderAddress].privateKeyWIF;
 
     // Get previous transactions
-    const prevTxURL = zenwalletutils.urlAppend(this.props.settings.insightAPI, 'addr/') + senderAddress + '/utxo'
-    const infoURL = zenwalletutils.urlAppend(this.props.settings.insightAPI, 'status?q=getInfo')
-    const sendRawTxURL = zenwalletutils.urlAppend(this.props.settings.insightAPI, 'tx/send')
+    const prevTxURL = utils.urlAppend(this.props.settings.insightAPI, 'addr/') + senderAddress + '/utxo'
+    const infoURL = utils.urlAppend(this.props.settings.insightAPI, 'status?q=getInfo')
+    const sendRawTxURL = utils.urlAppend(this.props.settings.insightAPI, 'tx/send')
 
     // Building our transaction TXOBJ
     // How many satoshis do we have so far
@@ -628,10 +631,10 @@ class ZSendZEN extends React.Component {
       axios.get(infoURL)
       .then(function (info_resp){
         this.setProgressValue(50)
-        const info_data = info_resp.data
+        const infoData = info_resp.data
 
-        const blockHeight = info_data.info.blocks - 300
-        const blockHashURL = zenwalletutils.urlAppend(this.props.settings.insightAPI, 'block-index/') + blockHeight        
+        const blockHeight = infoData.info.blocks - 300
+        const blockHashURL = utils.urlAppend(this.props.settings.insightAPI, 'block-index/') + blockHeight        
 
         // Get block hash
         axios.get(blockHashURL)
@@ -650,6 +653,7 @@ class ZSendZEN extends React.Component {
             history = history.concat({
               txid: tx_data[i].txid,
               vout: tx_data[i].vout,
+              satoshis: tx_data[i].satoshis,
               scriptPubKey: tx_data[i].scriptPubKey,            
             });
             
@@ -663,7 +667,7 @@ class ZSendZEN extends React.Component {
           // If we don't have enough address
           // fail and tell user
           if (satoshisSoFar < satoshisToSend + satoshisfeesToSend){            
-            this.setSendErrorMessage('Not enough confirmed ZEN in account to perform transaction')
+            this.setSendErrorMessage('Not enough confirmed BTCZ in account to perform transaction')
             this.setProgressValue(0)          
           }
 
@@ -671,36 +675,66 @@ class ZSendZEN extends React.Component {
           // Refund remaining to current address
           if (satoshisSoFar !== satoshisToSend + satoshisfeesToSend){
             var refundSatoshis = satoshisSoFar - satoshisToSend - satoshisfeesToSend
-            recipients = recipients.concat({address: senderAddress, satoshis: refundSatoshis})
+            // Refunding 'dust' (<54 satoshis will result in unconfirmed txs)
+            if (refundSatoshis > 60){
+              recipients = recipients.concat({address: senderAddress, satoshis: refundSatoshis})
+            }
           }
 
-          // Create transaction
-          var txObj = zencashjs.transaction.createRawTx(history, recipients, blockHeight, blockHash)
+          // Start building transaction
+          const networkName = this.props.settings.useTestNet ? 'bitcoinzTest' : 'bitcoinz'
+          let network = bitgoUtxoLib.networks[networkName]
 
-          // Sign each history transcation          
-          for (var i = 0; i < history.length; i ++){
-            txObj = zencashjs.transaction.signTx(txObj, i, senderPrivateKey, this.props.settings.compressPubKey)
+          var keyPair = bitgoUtxoLib.ECPair.fromWIF(senderPrivateKeyWIF,network)
+          var txb = new bitgoUtxoLib.TransactionBuilder(network)
+
+          txb.setVersion(bitgoUtxoLib.Transaction.ZCASH_SAPLING_VERSION)
+          txb.setVersionGroupId(0x892F2085)
+          txb.setExpiryHeight(infoData.info.blocks+300) // expiration set to 300 blocks
+
+          // add inputs
+          for (var j = 0; j < history.length; j++) {
+            txb.addInput(history[j].txid, history[j].vout)
+          }
+
+          // add outputs
+          for (var k = 0; k < recipients.length; k++) {
+            var outputScript = bitgoUtxoLib.address.toOutputScript(recipients[k].address,network)
+            txb.addOutput(outputScript, recipients[k].satoshis)
+          }
+
+          // Sign each history transcation
+          for (var l = 0; l < history.length; l++) {
+            txb.sign(l,keyPair,'',bitgoUtxoLib.Transaction.SIGHASH_SINGLE,history[l].satoshis,'')
           }
 
           // Convert it to hex string
-          const txHexString = zencashjs.transaction.serializeTx(txObj)
+          const txHexString = txb.build().toHex()
 
-          axios.post(sendRawTxURL, {rawtx: txHexString})
-          .then(function(sendtx_resp){         
-            this.setState({
-              sendProgress: 100,
-              sentTxid: sendtx_resp.data.txid
+          // Post it to the api
+          axios.post(sendRawTxURL, { rawtx: txHexString }, {
+              headers: { 'Content-Type': 'application/json' }
             })
-          }.bind(this))
-          .catch(function(error) {            
-            this.setSendErrorMessage(error + '')
-            this.setProgressValue(0)
-            return
-          }.bind(this))
+            .then((sendtxResp) => {
+              const txRespData = sendtxResp.data
+
+              this.setState({
+                sendProgress: 100,
+                sentTxid: txRespData.txid
+              })
+            })
+
+            .catch((err) => {
+              console.error('Error sending RawTxURL: ', { sendRawTxURL, err })
+              this.setSendErrorMessage(err + '')
+              this.setProgressValue(0)
+              return
+            });
         }.bind(this))
       }.bind(this))
     }.bind(this))
     .catch(function(error){      
+      console.error('Error getting prevTxURL: ', { prevTxURL, err })
       this.setSendErrorMessage(error)
       this.setProgressValue(0)
       return
@@ -709,19 +743,19 @@ class ZSendZEN extends React.Component {
 
   render() {
     // If send was successful
-    var zenTxLink
+    var zTxLink
     if (this.state.sendProgress === 100){
-      var zentx = zenwalletutils.urlAppend(this.props.settings.explorerURL, 'tx/') + this.state.sentTxid
-      zenTxLink = (
+      var ztx = utils.urlAppend(this.props.settings.explorerURL, 'tx/') + this.state.sentTxid
+      zTxLink = (
         <Alert color="success">
-        <strong>ZEN successfully sent!</strong> <a href={zentx}>Click here to view your transaction</a>
+        <strong>BTCZ successfully sent!</strong> <a href={ztx}>Click here to view your transaction</a>
         </Alert>
       )      
     }
 
     // Else show error why
     else if (this.state.sendErrorMessage !== ''){
-      zenTxLink = (
+      zTxLink = (
         this.state.sendErrorMessage.split(';').map(function (s) {
           if (s !== ''){
             return (
@@ -750,7 +784,7 @@ class ZSendZEN extends React.Component {
         <Col>
           <Card>
             <CardBlock>       
-              <Alert color="danger">ALWAYS VALIDATE YOUR DESINATION ADDRESS BY SENDING SMALL AMOUNTS OF ZEN FIRST</Alert>              
+              <Alert color="danger">ALWAYS VALIDATE YOUR DESINATION ADDRESS BY SENDING SMALL AMOUNTS OF BTCZ FIRST</Alert>              
               <InputGroup>
                 <InputGroupAddon>From Address</InputGroupAddon>
                 <Input type="select" onChange={this.handleUpdateSelectedAddress}>
@@ -760,7 +794,7 @@ class ZSendZEN extends React.Component {
               </InputGroup>
               <InputGroup>
                 <InputGroupAddon>To Address</InputGroupAddon>
-                <Input onChange={this.handleUpdateRecipientAddress} placeholder="e.g znSDvF9nA5VCdse5HbEKmsoNbjCbsEA3VAH" />
+                <Input onChange={this.handleUpdateRecipientAddress} placeholder="e.g t1fHHnAXxoPWGY77sG5Zw2sFfGUTpW6BcSZ" />
               </InputGroup>
               <InputGroup>
                 <InputGroupAddon>Amount</InputGroupAddon>
@@ -774,18 +808,18 @@ class ZSendZEN extends React.Component {
               <FormGroup check>
                 <Label check>
                   <Input onChange={this.handleCheckChanged} type="checkbox" />{' '}
-                  Yes, I would like to send these ZEN
+                  Yes, I would like to send these BTCZ
                 </Label>
               </FormGroup> 
               <br/>                           
               <Button 
                 color="warning" className="btn-block"
                 disabled={!this.state.confirmSend || (this.state.sendProgress > 0 && this.state.sendProgress < 100)}
-                onClick={this.handleSendZEN}
+                onClick={this.handleSend}
               >Send</Button>
             </CardBlock>
             <CardFooter> 
-              {zenTxLink}
+              {zTxLink}
               <Progress value={this.state.sendProgress} />                                  
             </CardFooter>       
           </Card>
@@ -858,7 +892,7 @@ class ZWalletTabs extends React.Component {
               className={classnames({ active: this.state.activeTab === '2' })}
               onClick={() => { this.toggleTabs('2'); }}
             >
-              Send ZEN
+              Send BTCZ
             </NavLink>
           </NavItem>         
         </Nav>
@@ -871,7 +905,7 @@ class ZWalletTabs extends React.Component {
             />
           </TabPane>
           <TabPane tabId="2">
-            <ZSendZEN 
+            <ZSend 
               settings={this.props.settings}
               publicAddresses={this.props.publicAddresses}            
             />
@@ -904,8 +938,8 @@ export default class ZWallet extends React.Component {
         showSettings: false,
         showWalletGen: false,
         compressPubKey: true,
-        insightAPI: 'https://explorer.zensystem.io/insight-api-zen/',
-        explorerURL: 'https://explorer.zensystem.io/',
+        insightAPI: 'https://explorer.btcz.rocks/api/',
+        explorerURL: 'https://explorer.btcz.rocks/',
         useTestNet: false,
         unlockType: UNLOCK_WALLET_TYPE.HD_WALLET
       }
@@ -917,27 +951,27 @@ export default class ZWallet extends React.Component {
       return -2
     }
 
-    try{
+    //try{
       var publicAddresses = {}
 
       function _privKeyToAddr(pk, compressPubKey, useTestNet){
         // If not 64 length, probs WIF format
         if (pk.length !== 64){
-          pk = zencashjs.address.WIFToPrivKey(pk)          
+          pk = utils.WIFToPrivKey(pk)          
         }
 
         // Convert public key to public address
-        const pubKey = zencashjs.address.privKeyToPubKey(pk, compressPubKey)
+        const pubKey = btczjs.address.privKeyToPubKey(pk, compressPubKey)
 
         // Testnet or nah
-        const pubKeyHash = useTestNet ? zencashjs.config.testnet.pubKeyHash : zencashjs.config.mainnet.pubKeyHash
-        const publicAddr = zencashjs.address.pubKeyToAddr(pubKey, pubKeyHash)
+        const pubKeyHash = useTestNet ? btczjs.config.testnet.pubKeyHash : btczjs.config.mainnet.pubKeyHash
+        const publicAddr = btczjs.address.pubKeyToAddr(pubKey, pubKeyHash)
 
         return publicAddr
       }
 
       for (var i = 0; i < this.state.privateKeys.length; i++){
-        const pubKeyHash = this.state.settings.useTestNet ? zencashjs.config.testnet.wif : zencashjs.config.mainnet.wif
+        const pubKeyHashWif = this.state.settings.useTestNet ? btczjs.config.testnet.wif : btczjs.config.mainnet.wif
         
         var c_pk_wif;
         var c_pk = this.state.privateKeys[i]
@@ -945,19 +979,19 @@ export default class ZWallet extends React.Component {
         // If not 64 length, probs WIF format
         if (c_pk.length !== 64){
           c_pk_wif = c_pk
-          c_pk = zencashjs.address.WIFToPrivKey(c_pk)
+          c_pk = utils.WIFToPrivKey(c_pk)
         }
         else{
-          c_pk_wif = zencashjs.address.privKeyToWIF(c_pk)
+          c_pk_wif = utils.privKeyToWIF(c_pk)
         }          
 
-        var c_pk_wif = zencashjs.address.privKeyToWIF(c_pk, true, pubKeyHash)        
+        var c_pk_wif = utils.privKeyToWIF(c_pk, true, pubKeyHashWif)        
         const c_addr = _privKeyToAddr(c_pk, this.state.settings.compressPubKey, this.state.settings.useTestNet)        
 
         publicAddresses[c_addr] = {
           privateKey: c_pk,
           privateKeyWIF: c_pk_wif,
-          transactionURL: zenwalletutils.urlAppend(this.state.settings.explorerURL, 'address/') + c_addr,        
+          transactionURL: utils.urlAppend(this.state.settings.explorerURL, 'address/') + c_addr,        
           confirmedBalance: 'loading...',
           unconfirmedBalance: 'loading...',  
         }
@@ -968,10 +1002,11 @@ export default class ZWallet extends React.Component {
 
       // Return success
       return 0
-    } catch(err) {      
-      this.setPublicAddresses(null)
-      return -1
-    }
+    //} catch(err) {      
+    //  console.error('handleUnlockPrivateKeys()', { err });
+    //  this.setPublicAddresses(null)
+    //  return -1
+    //}
   }
 
   resetKeys(){
@@ -1039,12 +1074,12 @@ export default class ZWallet extends React.Component {
     _settings.useTestNet = !_settings.useTestNet
 
     if (_settings.useTestNet){
-      _settings.insightAPI = 'http://aayanl.tech:8081/insight-api-zen/'
-      _settings.explorerURL = 'http://aayanl.tech:8081/'
+      _settings.insightAPI = 'http://testnet.explorer.btcz.life:3002/api/'
+      _settings.explorerURL = 'http://testnet.explorer.btcz.life:3002/'
     }
     else{
-      _settings.insightAPI = 'https://explorer.zensystem.io/insight-api-zen/'
-      _settings.explorerURL = 'https://explorer.zensystem.io/insight/'
+      _settings.insightAPI = 'https://explorer.btcz.rocks/api/'
+      _settings.explorerURL = 'https://explorer.btcz.rocks/'
     }
 
     this.setState({
@@ -1075,7 +1110,7 @@ export default class ZWallet extends React.Component {
       <Container>
         <Row>
           <Col>
-            <h1 className='display-6'>ZenCash Wallet&nbsp;
+            <h1 className='display-6'>BitcoinZ Wallet&nbsp;
               <ToolTipButton onClick={this.toggleShowSettings} id={1} buttonText={<MDSettings/>} tooltipText={'settings'}/>&nbsp;
               <ToolTipButton disabled={this.state.publicAddresses === null} onClick={this.resetKeys} id={2} buttonText={<FARepeat/>} tooltipText={'reset wallet'}/>
             </h1>

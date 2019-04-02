@@ -15,30 +15,22 @@ export default class ZFooter extends React.Component {
   }
 
   render () {
-    return (      
+    return (
       <div style={footer}>
         <br/>
-        <Container>      
+        <Container>
         <Row>
           <Col md="8">
-            <p>MAKE SURE YOU ARE ON <b>MYZENWALLET.IO</b></p>
+            <p>MAKE SURE YOU ARE ON <b>bitcoinz-wallets.github.io/web-wallet/ AND BOOKMARK IT</b></p>
 
-            <p>Keys are validated client-side and do not leave your browser or network. You are responsible for keeping your own keys safe!!!</p>
+            <p>Keys are validated client-side and do not leave your browser or network. You are responsible for keeping your own keys safe! SAVE YOUR PRIVATE KEY BEFORE SENDING OR RECEIVING, LEAVING THE PAGE WILL ERASE EVERYTHING.</p>
 
-            <p>Suggestions? Email me: kendricktan0814 at gmail.com or find me on slack @ kendricktan.</p>          
-
-            <p style={longP}>Donations are always welcome!<br/>
-              <b>BTC</b>: 14VmTd7Npm27SmJgrg1eUrSPgFEHcMXVGR<br/>
-              <b>ETH</b>: 0x19Ed10db2960B9B21283FdFDe464e7bF3a87D05D<br/>
-              <b>ZEN</b>: znSDvF9nA5VCdse5HbEKmsoNbjCbsEA3VAH
-            </p>
           </Col>
           <Col md="4">
-            <a href="https://zensystem.io/">website</a><br/>
-            <a href="https://blog.zensystem.io/">blog</a><br/>
-            <a href="https://forum.zensystem.io/">forum</a><br/>
-            <a href="https://github.com/ZencashOfficial">github</a><br/>
-            <a href="https://slackinvite.zensystem.io/">slack</a><br/>
+            <a href="https://www.bitcoinz.site/" target="_blank">website</a><br/>
+            <a href="https://bitcointalk.org/index.php?topic=2166510.0" target="_blank">ANN</a><br/>
+            <a href="https://github.com/bitcoinz-wallets/web-wallet" target="_blank">github</a><br/>
+            <a href="https://slack.bitcoinz.site/" target="_blank">slack</a><br/>
           </Col>
         </Row>
         </Container>
