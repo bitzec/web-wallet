@@ -30898,7 +30898,7 @@ var ZFooter = function (_React$Component) {
                 _react2.default.createElement(
                   'b',
                   null,
-                  'bitcoinz-wallets.github.io/web-wallet/ AND BOOKMARK IT'
+                  'https://bitcoinz-wallets.github.io/web-wallet/ AND BOOKMARK IT'
                 )
               ),
               _react2.default.createElement(

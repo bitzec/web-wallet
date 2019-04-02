@@ -8,13 +8,16 @@ const fs = require('fs')
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 
 module.exports = {
+    devServer: {
+        publicPath: '/web-wallet/'
+    },
     entry: {
         index: './app/index.js',
         faq: './app/faq.js',
         guide: './app/guide.js'
     },
     output: {
-        path: path.resolve('dist'),
+        path: path.resolve('docs'),
         filename: 'js/[name].js'
     },
     module: {
