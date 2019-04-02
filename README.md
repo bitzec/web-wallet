@@ -11,7 +11,7 @@ BitcoinZ Web Wallet a client-side browser based wallet for BitcoinZ BTCZ based o
 MyZENWallet which is the original client-side browser-based wallet for ZenCASH.
 
 # Running locally
-Download one of the releases, goto the `dist` folder and double click `index.html`
+Download one of the releases, goto the `docs` folder and double click `index.html`
 
 # Dev
 ```shell

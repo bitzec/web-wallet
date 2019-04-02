@@ -22,17 +22,17 @@ export default class ZNavbar extends React.Component {
       <Navbar color='faded' light toggleable>
         <NavbarToggler right onClick={this.toggleNavbar} />
         <NavbarBrand href='/web-wallet/'>
-          <img src="/web-wallet/favicon.ico" height={42}/>&nbsp;bitcoinz-wallets.github.io/web-wallet/
+          <img src="/web-wallet/favicon.ico" height={42}/>&nbsp;BitcoinZ Web Wallet
         </NavbarBrand>
         <Collapse isOpen={this.state.isOpen} navbar>
           <Nav className='ml-auto' navbar>
             <NavItem>
-              <NavLink href='/faq.html'>
+              <NavLink href='/web-wallet/faq.html'>
                 FAQ
               </NavLink>
             </NavItem>
             <NavItem>
-              <NavLink href='/guide.html'>
+              <NavLink href='/web-wallet/guide.html'>
                 GETTING STARTED
               </NavLink>
             </NavItem>

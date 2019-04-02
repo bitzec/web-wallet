@@ -21,7 +21,7 @@ export default class ZFooter extends React.Component {
         <Container>
         <Row>
           <Col md="8">
-            <p>MAKE SURE YOU ARE ON <b>bitcoinz-wallets.github.io/web-wallet/ AND BOOKMARK IT</b></p>
+            <p>MAKE SURE YOU ARE ON <b>https://bitcoinz-wallets.github.io/web-wallet/ AND BOOKMARK IT</b></p>
 
             <p>Keys are validated client-side and do not leave your browser or network. You are responsible for keeping your own keys safe! SAVE YOUR PRIVATE KEY BEFORE SENDING OR RECEIVING, LEAVING THE PAGE WILL ERASE EVERYTHING.</p>
 
